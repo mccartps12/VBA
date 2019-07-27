@@ -1,0 +1,245 @@
+Sub subStockAnalysis():
+
+' Multiple Year Stock Data Analaysis 
+' Peter McCarthy
+' Assignment# - VBA - Due 7/27/19
+
+'---PURPOSE OF THIS SCRIPT----------------------------------------------------------
+'This script was designed to analyze high-level stock data for which daily stock
+'information is available. It collapses the 250+ days of individual stock data for
+'thousands of stocks into one row of summary data for the stock for each given year.
+
+'It also provides for each year, the stocks with the greatest percentage price 
+'increase and descrease over the course of the year as well as the stock with the
+'greatest aggregate volume of shares traded for the year.
+
+'Finally, if more than one year's worth of stock data is provided in an Excel 
+'workbook on separate worksheets, it will perform all of the steps above on each 
+'individual worksheet.   
+
+'---VARIABLE DECLARATION------------------------------------------------------------
+'Declare variables for sub
+
+'Variables / counters to control loops or to identify rows in which to store output variables
+Dim lp As Long: lp = 1 ' counter for loop number; enables first loop to include volumes of first two rows of a symbol
+Dim r As Long: r = 3 ' use for row count and loop within each spreadsheet
+Dim stockCounter As Double: stockCounter = 1 ' use as the row number of annual output sheet into which stock symbols summary data will be placed
+Dim endOfSheet As Boolean: endOfSheet = False ' use to identify when the subloop grabbing stock data and calc'ing annual summary data
+
+'Variables saved for each symbol at various stages of subloop and calc'ing stocks' annual summary data
+Dim tempSymbol As String ' save for end of each loop to insert into output sheet at location cells(stockCounter,1)
+Dim tempPxOpen As Double: tempPxOpen = 0 ' save at the start of each loop to store open to calc price change at the end of each loop
+Dim tempVolume As Double: tempVolume = 0 ' use to add daily trading volume in temporary variable in each loop for each symbol
+Dim tempPxClose As Double: tempPxClose = 0 ' save at the end of each loop to calc the price change
+
+'Calcs done on variables to determine annual performance
+Dim tempPxChange As Double: tempPxChange = 0 ' use to calc and store the price change for the year at the end of each loop
+Dim tempPxPercentChange As Double: tempPxPercentChange = 0 'use to calc and store the price % change for the year at the end of each loop
+
+'Declare string values for headers on output columns
+Dim tickerHeader As String
+Dim yearChangeHeader As String
+Dim yearPercentChangeHeader As String
+Dim yearVolumeHeader As String
+Dim topTickerHeader As String
+Dim topValueHeader As String
+Dim topGreatestIncrease As String
+Dim topGreatestDecrease As String
+Dim topGreatestVolume As String
+
+'Declare variables for calcs done to determine top annual summary stats
+Dim s As Long ' use for row count on loop for CHALLENGE to identify top and worst performing stocks and stock with highest volume
+Dim greatestIncrease As Double
+Dim greatestDecrease As Double
+Dim greatestVolume As Double
+Dim greatestIncreaseTicker As String
+Dim greatestDecreaseTicker As String
+Dim greatestVolumeTicker As String
+
+'Variables for moving to subsequent spreadsheets
+Dim ws As Worksheet
+Dim starting_ws As Worksheet
+'---END VARIABLE DECLARATION-----------------------------------------------------------------------------
+
+
+'---MAIN LOOP--------------------------------------------------------------------------------------------
+    ' LOOP THROUGH ALL SHEETS
+    Set starting_ws = ActiveSheet 'remember which worksheet is active in the beginning so it will return to this sheet at end
+    For Each ws In Worksheets
+        ws.Activate
+        endOfSheet = False
+        stockCounter = 1
+        
+        'Apply string values to headings on each sheet for output values
+        ws.Cells(1, 10).Value = "Ticker"
+        ws.Cells(1, 11).Value = "Yearly Change"
+        ws.Cells(1, 12).Value = "Percent Change"
+        ws.Cells(1, 13).Value = "Total Stock Volume"
+        ws.Cells(1, 16).Value = "Ticker"
+        ws.Cells(1, 17).Value = "Value"
+        ws.Cells(2, 15).Value = "Greatest % Increase"
+        ws.Cells(3, 15).Value = "Greatest % Decrease"
+        ws.Cells(4, 15).Value = "Greatest Total Volume"
+        
+            '---SUBLOOP #1 of 2--------------------------------------------------------------------------
+            'CONTAINS FOUR BLOCKS OF IF STATEMENTS THAT LOOP THROUGH EACH STOCK SYMBOL ON THE CURRENT SHEET TO PULL DATA AND CALC ANNUAL 
+	    'SUMMARY DATA FOR EACH STOCK
+
+            Do While endOfSheet = False
+                            
+                '----------------------------------------------------------------------------------------
+                ' #1 IF STATEMENT - will only run on 1st loop of 1st stock only; sotres init vars for 1st stock and volumes for first 2 dates
+                '----------------------------------------------------------------------------------------
+                
+                If lp = 1 Then
+                    tempSymbol = Cells(r - 1, 1).Value 'initial value for r = 3
+                    tempPxOpen = Cells(r - 1, 3).Value 'initial value for r = 3
+                    tempVolume = Cells(r, 7).Value + Cells(r - 1, 7).Value 'initial value for r = 3; calcs volume for rows 2 and 3
+                    r = r + 1
+                    lp = lp + 1
+                    stockCounter = stockCounter + 1 ' adds first stock to counter; only included when new symbols identified)
+                End If
+                
+                '---------------------------------------------------------------------------------------
+                '#2 IF STATEMENT - runs as long as the stock symbol is same in r, r-1 and r+1; stores init data for all stocks after first stock
+                '---------------------------------------------------------------------------------------
+                
+                If Cells(r, 1).Value = Cells(r - 1, 1).Value And Cells(r, 1).Value = Cells(r + 1, 1).Value And lp <> 1 Then
+                    tempVolume = tempVolume + Cells(r, 7).Value
+                    endOfSheet = False ' resets variable so subsequent loops will continue to run until #3 & #4 IF STATEMENTS are hit
+                    lp = lp + 1
+                    r = r + 1
+                End If
+                
+                '---------------------------------------------------------------------------------------
+                ' #3 IF STATEMENT - identifies last row of each symbols (except last symbol on the sheet - see if #3); calcs / records all but last stock's summary data
+                '---------------------------------------------------------------------------------------
+                
+                If Cells(r, 1).Value <> Cells(r + 1, 1) And Cells(r + 1, 1).Value <> "" Then
+                    Cells(stockCounter, 10).Value = tempSymbol
+                    tempPxClose = Cells(r, 6).Value ' closing value for the last row of the stock
+                    tempPxChange = tempPxClose - tempPxOpen
+                        If tempPxChange > 0 Then
+                            ws.Cells(stockCounter, 11).Interior.ColorIndex = 4
+                        ElseIf tempPxChange < 0 Then
+                            ws.Cells(stockCounter, 11).Interior.ColorIndex = 3
+                        End If
+                    Cells(stockCounter, 11).Value = tempPxChange
+                    Cells(stockCounter, 11).NumberFormat = "$#,##0.000"
+                    ' FIX FOR ERRONEOUS DATA FOR SYMBOL PLNT IN 2015, BEG ROW 548,790
+                    If (tempPxOpen = 0) Then
+                        tempPxOpen = tempPxClose
+                    Else
+                    tempPxPercentChange = (tempPxClose / tempPxOpen) - 1
+                    End If
+                    Cells(stockCounter, 12).Value = tempPxPercentChange
+                    Cells(stockCounter, 12).NumberFormat = "#,##0.00%"
+                    tempVolume = tempVolume + Cells(r, 7).Value ' adds last row's stock volume for this stock
+                    Cells(stockCounter, 13).Value = tempVolume
+                    Cells(stockCounter, 13).NumberFormat = "#,##0"
+                    
+                    'Set temp variables to included initial values for next stock, taking values from 1st row of next stock
+ 
+                    tempSymbol = Cells(r + 1, 1).Value
+                    tempPxOpen = Cells(r + 1, 3).Value
+                    tempVolume = Cells(r + 1, 7).Value
+                    lp = lp + 1
+                    r = r + 2 'Incrementing r by 2 ensures the comparison in "if #2" on next loop above compares same symbol
+
+                    stockCounter = stockCounter + 1
+                
+                End If
+                
+                '---------------------------------------------------------------------------------------
+                ' #4 IF STATEMENT - identifies last row of last symbol on workseheet;  calcs / records last stock on sheet's summary data
+                '---------------------------------------------------------------------------------------
+                
+                If Cells(r + 1, 1).Value = "" Then
+                    Cells(stockCounter, 10).Value = tempSymbol
+                    tempPxClose = Cells(r, 6).Value ' closing value for the last row of the stock
+                    tempPxChange = tempPxClose - tempPxOpen
+                                            If tempPxChange > 0 Then
+                            ws.Cells(stockCounter, 11).Interior.ColorIndex = 4
+                        ElseIf tempPxChange < 0 Then
+                            ws.Cells(stockCounter, 11).Interior.ColorIndex = 3
+                        End If
+                    Cells(stockCounter, 11).Value = tempPxChange
+                    Cells(stockCounter, 11).NumberFormat = "$#,##0.000"
+                    ' FIX FOR ERRONEOUS DATA FOR SYMBOL PLNT IN 2015, BEG ROW 548,790
+                    If (tempPxOpen = 0) Then
+                        tempPxOpen = tempPxClose
+                    Else
+                    tempPxPercentChange = (tempPxClose / tempPxOpen) - 1
+                    End If
+                    Cells(stockCounter, 12).Value = tempPxPercentChange
+                    Cells(stockCounter, 12).NumberFormat = "#,##0.00%"
+                    tempVolume = tempVolume + Cells(r, 7).Value ' adds last row's stock volume for this stock
+                    Cells(stockCounter, 13).Value = tempVolume
+                    Cells(stockCounter, 13).NumberFormat = "#,##0"
+                    
+                    'Reset temp variables and increment stockCounter for the output row to store next symbol's data in
+                    tempPxClose = 0
+                    tempPxChange = 0
+                    tempPxPercentChange = 0
+                    tempVolume = 0
+                                        
+                    'Set temp variables to included initial values for next sheet
+                    lp = 1
+                    r = 3 'Incrementing r by 2 ensures the comparison in "if #2" on next loop above compares same symbol
+
+                    stockCounter = stockCounter + 1 'corrects for adding 1 to the stockCounter value in the 3rd if statement when last stock on sheet is reached
+                    endOfSheet = True ' Tells sub to start a new loop at the end of IF #4 (only #4 if will hit on last loop)
+                
+                End If
+                
+          
+          
+            Loop
+            '---END SUBLOOP #1 of 2---------------------------------------------------------------------------------
+            
+            
+            
+            '---SUBLOOP #2 of 2-------------------------------------------------------------------------------------
+            'CHALLENGE - Determine best/worst performing stocks and stock with highest volume each year
+ 
+            'Set values to previously defined variables values for calcs done to determine top annual stats
+             s = 2 ' to serve as row counter for top annual calc loop
+             greatestIncrease = 0
+             greatestDecrease = 0
+             greatestVolume = 0
+ 
+             Do Until Cells(s + 2, 10) = ""
+    
+                If ws.Cells(s, 12).Value > greatestIncrease Then
+                    greatestIncreaseTicker = ws.Cells(s, 10).Value
+                    greatestIncrease = ws.Cells(s, 12).Value
+                
+                ElseIf ws.Cells(s, 12).Value < greatestDecrease Then
+                    greatestDecreaseTicker = ws.Cells(s, 10).Value
+                    greatestDecrease = ws.Cells(s, 12).Value
+                ElseIf ws.Cells(s, 13).Value > greatestVolume Then
+                    greatestVolumeTicker = ws.Cells(s, 10).Value
+                    greatestVolume = ws.Cells(s, 13).Value
+                End If
+                    s = s + 1
+    
+             Loop
+             '---END SUBLOOP #2 of 2--------------------------------------------------------------------------------
+
+
+             'Record greatest values as output
+             ws.Cells(2, 16).Value = greatestIncreaseTicker
+             ws.Cells(2, 17).Value = greatestIncrease
+             ws.Cells(2, 17).NumberFormat = "#,##0.00%"
+             ws.Cells(3, 16).Value = greatestDecreaseTicker
+             ws.Cells(3, 17).Value = greatestDecrease
+             ws.Cells(3, 17).NumberFormat = "#,##0.00%"
+             ws.Cells(4, 16).Value = greatestVolumeTicker
+             ws.Cells(4, 17).Value = greatestVolume
+             ws.Cells(4, 17).NumberFormat = "#,##0"
+      
+    Next ws
+'---END MAIN LOOP -------------------------------------------------------------------------------------------------
+
+End Sub
+
